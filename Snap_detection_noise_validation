@@ -1,0 +1,101 @@
+#set directory (secific to ishmal) 
+cd /Users/corinnepickering/Snapping_Acoustics
+
+#activate virtual enviroment
+source .venv/bin/activate
+
+#install:
+pip install matplotlib
+
+#start:
+python
+
+#added this function to main script:
+def plot_window_diagnostic(wav_path: Path, start_s: float = 0.0, duration_s: float = 10.0):
+    """
+    Plot 10s time series + red dots at detected snaps for visual validation.
+    Uses original single-channel pressure processing (ignores vector channels).
+    """
+    import matplotlib.pyplot as plt
+    
+    # Use ORIGINAL single-channel loader
+    volts, fs = load_wav_to_volts(wav_path)
+    pressure_pa = volts_to_pressure_pa(volts)
+    
+    start_idx = int(start_s * fs)
+    end_idx = int((start_s + duration_s) * fs)
+    window = pressure_pa[start_idx:end_idx]
+    
+    # High-pass and detect
+    window_hp = highpass_filter(window, fs)
+    snaps = detect_snaps(window_hp, fs)
+    
+    # Color snaps by intensity (RL) for better visualization
+    RLs_db = compute_snap_RLs(window_hp, snaps, fs)
+    ##To have the envelope as black lines instead replace plot scripps with this: 
+    "
+    # Color snaps by intensity (RL) for better visualization
+    RLs_db = compute_snap_RLs(window_hp, snaps, fs)
+    
+    plt.figure(figsize=(12, 4))
+    time = np.arange(len(window)) / fs
+    
+    plt.plot(time, 20*np.log10(np.abs(window_hp)+1e-12), 'k-', linewidth=0.5)
+    
+    # Color by RL: brighter = louder snaps
+    colors = plt.cm.viridis((RLs_db - RLs_db.min()) / (RLs_db.max() - RLs_db.min()))
+    plt.scatter(snaps/fs, 20*np.log10(np.abs(window_hp)[snaps]+1e-12), 
+                c=colors, s=60, marker='o', edgecolors='black', linewidth=0.8)
+    
+    plt.colorbar(label='Snap RL (dB re 1 µPa)')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Pressure (dB re 1 Pa)')
+    plt.title(f'{wav_path.name} [{start_s:.0f}-{start_s+duration_s:.0f}s]')
+    plt.legend(['Envelope', 'Snaps (color = intensity)'])
+    plt.tight_layout()
+    plt.show()
+    
+    print(f"Detected {len(snaps)} snaps, RL range: {RLs_db.min():.1f}–{RLs_db.max():.1f} dB")
+    "
+
+    plt.figure(figsize=(12, 4))
+    time = np.arange(len(window)) / fs
+    
+    # Color envelope by intensity (brighter = higher amplitude)
+    envelope_db = 20*np.log10(np.abs(window_hp)+1e-12)
+    norm_intensity = (envelope_db - envelope_db.min()) / (envelope_db.max() - envelope_db.min())
+    colors = plt.cm.viridis(norm_intensity)
+    
+    plt.scatter(time, envelope_db, c=colors, s=3, alpha=0.7)
+    
+    # Red circles for snaps (fixed color, larger)
+    plt.scatter(snaps/fs, envelope_db[snaps], 
+                color='red', s=80, marker='o', edgecolors='darkred', linewidth=1.5,
+                label='Detected snaps', zorder=10)
+    
+    plt.colorbar(label='Envelope intensity')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Pressure (dB re 1 Pa)')
+    plt.title(f'{wav_path.name} [{start_s:.0f}-{start_s+duration_s:.0f}s]')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    
+    print(f"Detected {len(snaps)} snaps")
+
+#Run:
+from pathlib import Path
+from shrimp_processing import plot_window_diagnostic
+
+#define wav each time
+wav = Path("/Volumes/Shared-1/TIDAL/TiDAL_Deployment_Maui_2025/Acoustic_Data/001/2025-03-16T0812/AnalogData-16MAR2025-0832_VS-209sensor-rot.wav")
+
+##determined which type of noise with ulysses
+# Tune on whale noise 
+plot_window_diagnostic(wav, start_s=10, duration_s=10)
+
+# Tune on boat noise  
+plot_window_diagnostic("data/boat_noisy.wav", start_s=20, duration_s=10)
+
+# Tune on clean shrimp
+plot_window_diagnostic("data/clean_shrimp.wav", start_s=0, duration_s=10)
