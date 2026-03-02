@@ -10,6 +10,67 @@ pip install matplotlib
 #start:
 python
 
+#This is the function to plot the spectgram with snap detections: 
+def plot_spectrogram_with_snaps(wav_path: Path, start_s: float = 0.0, duration_s: float = 30.0, 
+                               fmin: float = 0, fmax: float = 8000):
+    """
+    Plot spectrogram + red circles at detected snap times/frequencies.
+    Perfect for validating whale/boat rejection.
+    """
+    import matplotlib.pyplot as plt
+    from scipy.signal import spectrogram
+    
+    # Load and extract window
+    volts, fs = load_wav_to_volts(wav_path)
+    pressure_pa = volts_to_pressure_pa(volts)
+    
+    start_idx = int(start_s * fs)
+    end_idx = int((start_s + duration_s) * fs)
+    window = pressure_pa[start_idx:end_idx]
+    
+    # High-pass and detect snaps
+    window_hp = highpass_filter(window, fs)
+    snaps = detect_snaps(window_hp, fs)
+    snap_times = snaps / fs  # relative to window start
+    
+    # Compute spectrogram
+    f, t, Sxx = spectrogram(window_hp, fs, nperseg=1024, noverlap=512, 
+                           nfft=2048, window='hann')
+    
+    # Plot
+    plt.figure(figsize=(14, 6))
+    
+     # Plot spectrogram
+    plt.pcolormesh(t, f/1000, 10*np.log10(Sxx+1e-12), 
+                   shading='gouraud', cmap='viridis', vmin=-100, vmax=-40)
+    plt.colorbar(label='Power (dB re 1 Pa²/Hz)')
+    
+    # RED DOTS at snap times (one dot per snap at peak frequency ~2kHz)
+    snap_freq_khz = 5.0  # snap center frequency
+    plt.scatter(snap_times, np.full_like(snap_times, snap_freq_khz), 
+                color='red', s=120, marker='o', edgecolors='darkred', linewidth=2,
+                label='Detected snaps', zorder=10)
+    
+    plt.xlim(0, duration_s)
+    plt.ylim(fmin/1000, fmax/1000)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Frequency (kHz)')
+    plt.title(f'{wav_path.name} [{start_s:.0f}-{start_s+duration_s:.0f}s]\nRed dots = detected snaps')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    
+    print(f"Detected {len(snaps)} snaps in {duration_s}s")
+    print(f"Snaps at: {snap_times.round(2)} s")
+#Run it:
+    from pathlib import Path
+    from shrimp_processing import plot_spectrogram_with_snaps
+    #define wav each time
+    wav = Path("/Volumes/Shared-1/TIDAL/TiDAL_Deployment_Maui_2025/Acoustic_Data/001/2025-03-16T0812/AnalogData-16MAR2025-0832_VS-209sensor-rot.wav")
+
+    >>> plot_spectrogram_with_snaps(wav, start_s=10, duration_s=30)
+
 #added this function to main script:
 def plot_window_diagnostic(wav_path: Path, start_s: float = 0.0, duration_s: float = 10.0):
     """
