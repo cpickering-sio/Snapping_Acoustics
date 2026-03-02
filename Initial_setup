@@ -10,3 +10,8 @@ source .venv/bin/activate
 
 # On Windows PowerShell, you would instead run:
 # .venv\Scripts\Activate.ps1
+
+#to create the same envrioment later on: 
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
