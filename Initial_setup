@@ -1,0 +1,12 @@
+# 1. Clone your GitHub repo (empty or existing)
+git clone https://github.com/cpickering-sio/Snapping_Acoustics.git
+cd Snapping_Acoustics
+
+# 2. Create a virtual environment inside the repo
+python3 -m venv .venv
+
+# 3. Activate the virtual environment (macOS / Linux)
+source .venv/bin/activate
+
+# On Windows PowerShell, you would instead run:
+# .venv\Scripts\Activate.ps1
